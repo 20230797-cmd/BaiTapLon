@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1014</width>
+    <height>713</height>
+   </rect>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>20</pointsize>
+    <weight>75</weight>
+    <bold>true</bold>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: #2b2b2b; color: white; font-weight: bold;</string>
+  </property>
+  <widget class="QLabel" name="label">
+   <property name="geometry">
+    <rect>
+     <x>350</x>
+     <y>20</y>
+     <width>261</width>
+     <height>91</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>20</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string>FORM QUẢN LÝ</string>
+   </property>
+   <property name="textFormat">
+    <enum>Qt::PlainText</enum>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_ql_chuyentau">
+   <property name="geometry">
+    <rect>
+     <x>100</x>
+     <y>160</y>
+     <width>221</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>QL Chuyến tàu</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_ql_khachhang">
+   <property name="geometry">
+    <rect>
+     <x>420</x>
+     <y>160</y>
+     <width>201</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>QL Khách hàng</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_ql_taikhoan">
+   <property name="geometry">
+    <rect>
+     <x>760</x>
+     <y>160</y>
+     <width>191</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>QL Tài khoản</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_ql_gatau">
+   <property name="geometry">
+    <rect>
+     <x>100</x>
+     <y>350</y>
+     <width>221</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>QL Ga tàu</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_ql_ve">
+   <property name="geometry">
+    <rect>
+     <x>410</x>
+     <y>350</y>
+     <width>231</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>QL vé</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_ql_nhanvien">
+   <property name="geometry">
+    <rect>
+     <x>750</x>
+     <y>350</y>
+     <width>221</width>
+     <height>131</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>QL nhân viên</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="btn_thongke">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>540</y>
+     <width>221</width>
+     <height>121</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Thống kê</string>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

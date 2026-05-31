@@ -1,0 +1,22 @@
+﻿USE QuanLyTauHoa_MSSQL;
+GO
+
+-- 1. Thêm cột BookingChannel nếu bảng VeTau chưa có cột này
+IF NOT EXISTS (
+    SELECT * FROM sys.columns 
+    WHERE object_id = OBJECT_ID(N'VeTau') AND name = 'BookingChannel'
+)
+BEGIN
+    ALTER TABLE VeTau ADD BookingChannel NVARCHAR(20) DEFAULT 'Offline';
+END
+GO
+
+-- 2. Thêm cột StaffID nếu bảng VeTau chưa có cột này
+IF NOT EXISTS (
+    SELECT * FROM sys.columns 
+    WHERE object_id = OBJECT_ID(N'VeTau') AND name = 'StaffID'
+)
+BEGIN
+    ALTER TABLE VeTau ADD StaffID INT NULL;
+END
+GO

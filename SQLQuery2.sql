@@ -1,56 +1,68 @@
-﻿-- Chuyển đúng vào Database của bạn
-USE QuanLyTauHoa_MSSQL;
-GO
-
--- 1. Tạo bảng Chuyến Tàu
-CREATE TABLE ChuyenTau (
-    MaChuyen VARCHAR(50) PRIMARY KEY,       -- VD: SE1, TN1...
-    TenChuyen NVARCHAR(100) NOT NULL,       -- Tàu Khách Thống Nhất...
-    GaDi NVARCHAR(100) NOT NULL,
-    GaDen NVARCHAR(100) NOT NULL,
-    NgayDi NVARCHAR(20),                    -- Dùng chuỗi cho dễ nhập liệu ban đầu
-    GioDi NVARCHAR(20)
-);
-GO
-
--- 2. Tạo bảng Ga Tàu
-CREATE TABLE GaTau (
-    MaGa VARCHAR(50) PRIMARY KEY,
-    TenGa NVARCHAR(100) NOT NULL,
-    DiaChi NVARCHAR(255)
-);
-GO
-
--- 3. Tạo bảng Khách Hàng
-CREATE TABLE KhachHang (
-    MaKH VARCHAR(50) PRIMARY KEY,
-    TenKH NVARCHAR(100) NOT NULL,
-    CCCD VARCHAR(20),
-    SDT VARCHAR(20)
-);
-GO
-
--- 4. Tạo bảng Nhân Viên
-CREATE TABLE NhanVien (
-    MaNV VARCHAR(50) PRIMARY KEY,
-    TenNV NVARCHAR(100) NOT NULL,
-    ChucVu NVARCHAR(100),
-    SDT VARCHAR(20)
-);
-GO
-
--- 5. Tạo bảng Vé Tàu (Liên kết với Chuyến Tàu và Users)
-CREATE TABLE VeTau (
-    MaVe INT IDENTITY(1,1) PRIMARY KEY,             -- Mã vé tự tăng
-    MaChuyen VARCHAR(50),                           -- Cột khóa ngoại
-    UserID INT,                                     -- ID Khách hàng đặt vé
-    TenHanhKhach NVARCHAR(100) NOT NULL,
-    CCCD VARCHAR(20) NOT NULL,
-    LoaiGhe NVARCHAR(50),
-    NgayDat DATETIME,
-    
-    -- Tạo ràng buộc khóa ngoại (Rất tốt để báo cáo đồ án)
-    FOREIGN KEY (MaChuyen) REFERENCES ChuyenTau(MaChuyen),
-    FOREIGN KEY (UserID) REFERENCES Users(UserID)
-);
-GO
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery1.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:SQLQuery1.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery2.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:SQLQuery2.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery3.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:SQLQuery3.sql||{B5A506EB-11BE-4782-9A18-21265C2CA0B4}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "SQLQuery3.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (81))",
+              "DocumentMoniker": "D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery3.sql",
+              "RelativeDocumentMoniker": "SQLQuery3.sql",
+              "ToolTip": "D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery3.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (81))",
+              "RelativeToolTip": "SQLQuery3.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (81))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2026-05-06T14:23:19.775Z",
+              "EditorCaption": " - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (81))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SQLQuery2.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (80))",
+              "DocumentMoniker": "D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery2.sql",
+              "RelativeDocumentMoniker": "SQLQuery2.sql",
+              "ToolTip": "D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery2.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (80))",
+              "RelativeToolTip": "SQLQuery2.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (80))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2026-05-06T14:23:19.254Z",
+              "EditorCaption": " - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (80))"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "SQLQuery1.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (79))",
+              "DocumentMoniker": "D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery1.sql",
+              "RelativeDocumentMoniker": "SQLQuery1.sql",
+              "ToolTip": "D:\\Zalo Received Files\\DoAn_BanVeTauHoa (1)\\DoAn_BanVeTauHoa\\SQL\\SQLQuery1.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (79))",
+              "RelativeToolTip": "SQLQuery1.sql - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (79))",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000826|",
+              "WhenOpened": "2026-05-06T14:23:17.285Z",
+              "EditorCaption": " - localhost\\SQLEXPRESS.QuanLyTauHoa_MSSQL (NEPO-PC\\Thanh Dat (79))"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

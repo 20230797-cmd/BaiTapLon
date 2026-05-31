@@ -1,216 +1,280 @@
 import pyodbc
+import os
+import base64
+from datetime import datetime
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, 
-                             QLineEdit, QPushButton, QLabel, QTableWidget, 
-                             QTableWidgetItem, QMessageBox, QHeaderView, QAbstractItemView)
+                             QLineEdit, QPushButton, QLabel, QMessageBox, QComboBox, QGroupBox)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QFont
 
 import sys
-import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import CONNECTION_STRING
 
-class QLGaTauView(QDialog):
-    def __init__(self):
+class DatVeKhachHangView(QDialog):
+    def __init__(self, user_id, username):
         super().__init__()
-        self.setWindowTitle("Quản Lý Danh Mục Ga Tàu")
-        self.setMinimumSize(850, 600)
-        
+        self.user_id = user_id
+        self.username = username
+        self.setWindowTitle(f"Đặt Vé Trực Tuyến - {username.upper()}")
+        self.setFixedSize(600, 550)
         self.init_ui()
-        
-        # THÊM: Sự kiện nhấn đúp để xem các chuyến tàu đi qua ga này
-        self.table_gatau.itemDoubleClicked.connect(self.xem_chuyen_tau_tai_ga)
-        
-        self.load_data()
+        self.load_chuyen_tau()
 
     def init_ui(self):
         main_layout = QVBoxLayout()
+        main_layout.setContentsMargins(20, 20, 20, 20)
 
-        # --- 1. KHU VỰC TÌM KIẾM ---
-        search_layout = QHBoxLayout()
-        self.txt_timkiem = QLineEdit()
-        self.txt_timkiem.setPlaceholderText("Nhập tên ga tàu cần tìm...")
-        self.btn_tim = QPushButton("🔍 Tìm kiếm")
-        self.btn_tim.setStyleSheet("background-color: #3498db; color: white; font-weight: bold; padding: 5px;")
+        # 1. TIÊU ĐỀ
+        lbl_title = QLabel(f"🚂 CỔNG ĐẶT VÉ TRỰC TUYẾN DÀNH CHO HÀNH KHÁCH")
+        lbl_title.setStyleSheet("font-weight: bold; color: #e67e22; font-size: 18px;")
+        lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(lbl_title)
+
+        # 2. KHU VỰC THÔNG TIN CHUYẾN & GHẾ
+        group_ve = QGroupBox("1. Lựa Chọn Chuyến Đi & Vị Trí")
+        group_ve.setStyleSheet("QGroupBox { font-weight: bold; color: #2980b9; border: 1px solid #bdc3c7; border-radius: 5px; margin-top: 10px; padding-top: 15px; }")
+        layout_ve = QFormLayout()
         
-        search_layout.addWidget(QLabel("Tìm kiếm:"))
-        search_layout.addWidget(self.txt_timkiem)
-        search_layout.addWidget(self.btn_tim)
-        main_layout.addLayout(search_layout)
-
-        # Ghi chú nhỏ
-        help_label = QLabel("💡 Nhấn đúp vào dòng để xem danh sách các chuyến tàu đi qua ga này.")
-        help_label.setStyleSheet("color: gray; font-style: italic;")
-        main_layout.addWidget(help_label)
-
-        # --- 2. BẢNG DỮ LIỆU ---
-        self.table_gatau = QTableWidget()
-        self.table_gatau.setColumnCount(4) # Tăng lên 4 cột để hiện số chuyến tàu
-        self.table_gatau.setHorizontalHeaderLabels(["Mã Ga", "Tên Ga", "Địa Chỉ", "Số Chuyến Đang Chạy"])
-        self.table_gatau.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table_gatau.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table_gatau.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        main_layout.addWidget(self.table_gatau)
-
-        # --- 3. KHU VỰC NHẬP LIỆU ---
-        bottom_layout = QHBoxLayout()
-        form_layout = QFormLayout()
+        self.cb_chuyentau = QComboBox()
+        self.cb_chuyentau.setStyleSheet("padding: 5px;")
+        self.cb_chuyentau.currentIndexChanged.connect(self.cap_nhat_ghe_trong)
         
-        self.txt_maga = QLineEdit()
-        self.txt_maga.setPlaceholderText("VD: HNI, SGO...")
-        # Tự động viết hoa khi nhập mã ga
-        self.txt_maga.textChanged.connect(lambda: self.txt_maga.setText(self.txt_maga.text().upper()))
+        self.cb_loaighe = QComboBox()
+        self.cb_loaighe.addItems(["Ngồi Cứng", "Ngồi Mềm Điều Hòa", "Giường Nằm Khoang 4", "Giường Nằm Khoang 6"])
+        self.cb_loaighe.setStyleSheet("padding: 5px;")
+        self.cb_loaighe.currentIndexChanged.connect(self.cap_nhat_ghe_trong)
         
-        self.txt_tenga = QLineEdit()
-        self.txt_diachi = QLineEdit()
+        self.cb_soghe = QComboBox()
+        self.cb_soghe.setStyleSheet("padding: 5px; font-weight: bold; color: #d35400;")
+        
+        layout_ve.addRow("Chọn Chuyến Tàu:", self.cb_chuyentau)
+        layout_ve.addRow("Chọn Loại Khoang:", self.cb_loaighe)
+        layout_ve.addRow("Chọn Ghế (Đang Trống):", self.cb_soghe)
+        group_ve.setLayout(layout_ve)
+        main_layout.addWidget(group_ve)
 
-        form_layout.addRow("Mã Ga (*):", self.txt_maga)
-        form_layout.addRow("Tên Ga (*):", self.txt_tenga)
-        form_layout.addRow("Địa Chỉ:", self.txt_diachi)
-        bottom_layout.addLayout(form_layout, stretch=2)
+        # 3. KHU VỰC THÔNG TIN KHÁCH HÀNG & THANH TOÁN
+        group_kh = QGroupBox("2. Thông Tin Hành Khách & Thanh Toán")
+        group_kh.setStyleSheet("QGroupBox { font-weight: bold; color: #27ae60; border: 1px solid #bdc3c7; border-radius: 5px; margin-top: 10px; padding-top: 15px; }")
+        layout_kh = QFormLayout()
+        
+        self.txt_tenhk = QLineEdit()
+        self.txt_tenhk.setPlaceholderText("Họ và tên in trên CCCD (Bắt buộc)...")
+        self.txt_tenhk.setStyleSheet("padding: 5px;")
+        
+        self.txt_cccd = QLineEdit()
+        self.txt_cccd.setPlaceholderText("Số Giấy Tờ Tùy Thân (Bắt buộc)...")
+        self.txt_cccd.setStyleSheet("padding: 5px;")
 
-        btn_layout = QVBoxLayout()
-        self.btn_them = self.create_button("Thêm Ga Mới", "#2ecc71")
-        self.btn_sua = self.create_button("Cập Nhật", "#f39c12")
-        self.btn_xoa = self.create_button("Xóa Ga Tàu", "#e74c3c")
-        self.btn_clear = self.create_button("Làm Mới Form", "#95a5a6")
-        
-        btn_layout.addWidget(self.btn_them)
-        btn_layout.addWidget(self.btn_sua)
-        btn_layout.addWidget(self.btn_xoa)
-        btn_layout.addWidget(self.btn_clear)
-        bottom_layout.addLayout(btn_layout, stretch=1)
-        
-        main_layout.addLayout(bottom_layout)
+        self.cb_thanhtoan = QComboBox()
+        self.cb_thanhtoan.addItems(["MoMo E-Wallet", "VNPay", "ZaloPay", "Thẻ Tín Dụng / Ghi Nợ (Visa/Master)"])
+        self.cb_thanhtoan.setStyleSheet("padding: 5px; font-weight: bold; color: #8e44ad;")
+
+        layout_kh.addRow("Họ và Tên:", self.txt_tenhk)
+        layout_kh.addRow("Số Giấy Tờ (CCCD):", self.txt_cccd)
+        layout_kh.addRow("Phương Thức Thanh Toán:", self.cb_thanhtoan)
+        group_kh.setLayout(layout_kh)
+        main_layout.addWidget(group_kh)
+
+        main_layout.addSpacing(15)
+
+        # 4. NÚT CHỐT VÉ
+        self.btn_banve = QPushButton("🔒 XÁC NHẬN THANH TOÁN & XUẤT VÉ")
+        self.btn_banve.setFixedSize(350, 50)
+        self.btn_banve.setStyleSheet("""
+            QPushButton { background-color: #27ae60; color: white; font-weight: bold; font-size: 15px; border-radius: 8px; }
+            QPushButton:hover { background-color: #2ecc71; }
+        """)
+        btn_layout = QHBoxLayout()
+        btn_layout.addWidget(self.btn_banve, alignment=Qt.AlignmentFlag.AlignCenter)
+        main_layout.addLayout(btn_layout)
+
         self.setLayout(main_layout)
-
-        # KẾT NỐI SỰ KIỆN
-        self.btn_tim.clicked.connect(self.tim_kiem)
-        self.btn_them.clicked.connect(self.them_dulieu)
-        self.btn_sua.clicked.connect(self.sua_dulieu)
-        self.btn_xoa.clicked.connect(self.xoa_dulieu)
-        self.btn_clear.clicked.connect(self.clear_form)
-        self.table_gatau.cellClicked.connect(self.chon_dulieu)
-
-    def create_button(self, text, color):
-        btn = QPushButton(text)
-        btn.setStyleSheet(f"background-color: {color}; color: white; padding: 8px; font-weight: bold; border-radius: 4px;")
-        return btn
+        self.btn_banve.clicked.connect(self.thuc_hien_ban_ve)
 
     # ================= CÁC HÀM XỬ LÝ DATABASE =================
 
-    def load_data(self, query_filter="", params=None):
-        self.table_gatau.setRowCount(0)
+    def load_chuyen_tau(self):
+        try:
+            conn = pyodbc.connect(CONNECTION_STRING)
+            cursor = conn.cursor()
+            cursor.execute("SELECT MaChuyen, TenChuyen, NgayDi FROM ChuyenTau")
+            for row in cursor.fetchall():
+                # Hiện thêm ngày đi cho khách hàng dễ nhìn
+                ngay_di = row[2] if row[2] else "Chưa rõ ngày"
+                self.cb_chuyentau.addItem(f"{row[0]} - {row[1]} (Khởi hành: {ngay_di})", row[0])
+            conn.close()
+            self.cap_nhat_ghe_trong() 
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi Tải Chuyến Tàu", str(e))
+
+    def cap_nhat_ghe_trong(self):
+        """Thuật toán quét DB để loại bỏ những ghế đã được mua (Y hệt bên Nhân viên)"""
+        self.cb_soghe.clear()
+        ma_chuyen = self.cb_chuyentau.currentData()
+        loai_khoang = self.cb_loaighe.currentText()
+        if not ma_chuyen: return
+
+        ghe_da_ban = []
+        try:
+            conn = pyodbc.connect(CONNECTION_STRING)
+            cursor = conn.cursor()
+            cursor.execute("SELECT LoaiGhe FROM VeTau WHERE MaChuyen=?", (ma_chuyen,))
+            for row in cursor.fetchall():
+                thong_tin_ghe_db = row[0] 
+                if loai_khoang in thong_tin_ghe_db:
+                    parts = thong_tin_ghe_db.split("Ghế ")
+                    if len(parts) == 2:
+                        ghe_da_ban.append(parts[1].strip())
+            conn.close()
+        except Exception: pass
+
+        for i in range(1, 61):
+            so_ghe = f"{i:02d}"
+            if so_ghe not in ghe_da_ban:
+                self.cb_soghe.addItem(f"{so_ghe}")
+
+        if self.cb_soghe.count() == 0:
+            self.cb_soghe.addItem("HẾT CHỖ")
+            self.cb_soghe.setEnabled(False)
+            self.btn_banve.setEnabled(False)
+        else:
+            self.cb_soghe.setEnabled(True)
+            self.btn_banve.setEnabled(True)
+
+    def thuc_hien_ban_ve(self):
+        ma_chuyen = self.cb_chuyentau.currentData()
+        # Cắt bớt phần '(Khởi hành...)' để lấy tên tàu thuần túy in ra vé
+        ten_chuyen_full = self.cb_chuyentau.currentText()
+        ten_chuyen = ten_chuyen_full.split(" (Khởi hành:")[0]
+        
+        so_ghe = self.cb_soghe.currentText()
+        if so_ghe == "HẾT CHỖ": return
+        
+        loai_ghe = self.cb_loaighe.currentText()
+        thong_tin_ghe = f"{loai_ghe} - Ghế {so_ghe}"
+        
+        ten = self.txt_tenhk.text().strip()
+        cccd = self.txt_cccd.text().strip()
+        hinh_thuc_tt = self.cb_thanhtoan.currentText()
+
+        if not ten or not cccd:
+            QMessageBox.warning(self, "Lỗi", "Quý khách vui lòng nhập đầy đủ Họ tên và số CCCD!")
+            return
+
+        ngay_dat = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         try:
             conn = pyodbc.connect(CONNECTION_STRING)
             cursor = conn.cursor()
             
-            # SQL NÂNG CAO: Lấy thông tin Ga kèm theo đếm số chuyến tàu đi qua ga đó
-            sql = """
-                SELECT G.MaGa, G.TenGa, G.DiaChi, 
-                       (SELECT COUNT(*) FROM ChuyenTau C WHERE C.GaDi = G.TenGa OR C.GaDen = G.TenGa) as SoChuyen
-                FROM GaTau G
-            """
-            if query_filter:
-                sql += query_filter
-                
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.execute(sql)
-                
-            rows = cursor.fetchall()
-            for row_idx, row_data in enumerate(rows):
-                self.table_gatau.insertRow(row_idx)
-                for col_idx, data in enumerate(row_data):
-                    val = str(data) if data is not None else ""
-                    item = QTableWidgetItem(val)
-                    # Căn giữa số chuyến
-                    if col_idx == 3:
-                        item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                        if int(data) > 0: item.setForeground(QColor("#2980b9")) # Đổi màu nếu có chuyến
-                    self.table_gatau.setItem(row_idx, col_idx, item)
+            # ĐIỂM QUAN TRỌNG: BookingChannel = 'Online', StaffID = NULL (Khách tự mua)
+            cursor.execute("""
+                INSERT INTO VeTau (MaChuyen, TenHanhKhach, CCCD, LoaiGhe, NgayDat, BookingChannel, StaffID) 
+                VALUES (?, ?, ?, ?, ?, 'Online', NULL)
+            """, (ma_chuyen, ten, cccd, thong_tin_ghe, ngay_dat))
+            
+            cursor.execute("SELECT @@IDENTITY")
+            ma_ve = int(cursor.fetchone()[0])
+            conn.commit()
             conn.close()
+
+            # Mở trình duyệt in Vé điện tử Online
+            self.in_ve_html_online(ma_ve, ten, cccd, ten_chuyen, loai_ghe, so_ghe, ngay_dat, hinh_thuc_tt)
+            
+            QMessageBox.information(self, "Thanh Toán Thành Công", f"Giao dịch Online thành công!\nHệ thống đang mở Vé Điện Tử. Quý khách vui lòng chụp màn hình hoặc lưu file PDF để sử dụng khi lên tàu.")
+            self.txt_tenhk.clear()
+            self.txt_cccd.clear()
+            self.cap_nhat_ghe_trong() # Trừ ghế trống ngay lập tức
         except Exception as e:
-            QMessageBox.critical(self, "Lỗi Tải Dữ Liệu", str(e))
+            QMessageBox.critical(self, "Lỗi Hệ Thống", str(e))
 
-    def xem_chuyen_tau_tai_ga(self, item):
-        """Tính năng mới: Hiển thị các chuyến tàu cụ thể đi qua ga này"""
-        row = item.row()
-        tenga = self.table_gatau.item(row, 1).text()
+    # ================= XUẤT VÉ ĐIỆN TỬ DÀNH CHO KHÁCH HÀNG =================
+    def in_ve_html_online(self, ma_ve, ten, cccd, ten_chuyen, loai_khoang, so_ghe, ngay_dat, hinh_thuc_tt):
+        if not os.path.exists("HoaDon"):
+            os.makedirs("HoaDon")
+            
+        ten_file = os.path.abspath(f"HoaDon/E-Ticket_Online_{ma_ve}.html")
         
-        try:
-            conn = pyodbc.connect(CONNECTION_STRING)
-            cursor = conn.cursor()
-            # Tìm các chuyến tàu có Ga Đi hoặc Ga Đến trùng với tên Ga này
-            cursor.execute("SELECT MaChuyen, TenChuyen FROM ChuyenTau WHERE GaDi = ? OR GaDen = ?", (tenga, tenga))
-            chuyens = cursor.fetchall()
-            conn.close()
+        # ĐIỂM THAY ĐỔI: Dùng thẻ <img> mã hóa Base64 ảnh QR để khách hàng lưu vé không bị mất ảnh.
+        qr_html = ""
+        qr_path = os.path.abspath("qr_code.jpg")
+        if os.path.exists(qr_path):
+            with open(qr_path, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            qr_html = f"""
+            <div style="margin-top: 15px; text-align: center;">
+                <p style="font-size: 11px; color: #7f8c8d; margin: 0 0 5px 0;">Mã QR soát vé tự động</p>
+                <img src="data:image/jpeg;base64,{encoded_string}" alt="QR Soát Vé" style="width: 100px; height: 100px; border-radius: 5px; border: 1px solid #bdc3c7;">
+            </div>
+            """
 
-            if chuyens:
-                list_chuyen = "\n".join([f"- {c[0]}: {c[1]}" for c in chuyens])
-                QMessageBox.information(self, f"Chuyến tàu tại {tenga}", f"Các chuyến đang khai thác:\n{list_chuyen}")
-            else:
-                QMessageBox.information(self, "Thông báo", f"Hiện chưa có chuyến tàu nào đi qua ga {tenga}.")
-        except: pass
-
-    def clear_form(self):
-        self.txt_maga.clear()
-        self.txt_maga.setReadOnly(False)
-        self.txt_tenga.clear()
-        self.txt_diachi.clear()
-        self.txt_timkiem.clear()
-
-    def chon_dulieu(self, row, col):
-        self.txt_maga.setText(self.table_gatau.item(row, 0).text())
-        self.txt_maga.setReadOnly(True)
-        self.txt_tenga.setText(self.table_gatau.item(row, 1).text())
-        self.txt_diachi.setText(self.table_gatau.item(row, 2).text())
-
-    def tim_kiem(self):
-        tukhoa = self.txt_timkiem.text().strip()
-        self.load_data(query_filter=" WHERE TenGa LIKE ?", params=(f"%{tukhoa}%",))
-
-    # (Các hàm thêm, sửa, xóa giữ nguyên logic cũ của bạn nhưng đã được tối ưu hiển thị)
-    def them_dulieu(self):
-        maga, tenga, diachi = self.txt_maga.text().strip(), self.txt_tenga.text().strip(), self.txt_diachi.text().strip()
-        if not maga or not tenga: return
-        try:
-            conn = pyodbc.connect(CONNECTION_STRING)
-            conn.execute("INSERT INTO GaTau (MaGa, TenGa, DiaChi) VALUES (?, ?, ?)", (maga, tenga, diachi))
-            conn.commit()
-            conn.close()
-            self.load_data()
-        except Exception as e: QMessageBox.critical(self, "Lỗi", str(e))
-
-    def sua_dulieu(self):
-        maga, tenga, diachi = self.txt_maga.text().strip(), self.txt_tenga.text().strip(), self.txt_diachi.text().strip()
-        if not maga: return
-        try:
-            conn = pyodbc.connect(CONNECTION_STRING)
-            conn.execute("UPDATE GaTau SET TenGa=?, DiaChi=? WHERE MaGa=?", (tenga, diachi, maga))
-            conn.commit()
-            conn.close()
-            self.load_data()
-        except Exception as e: QMessageBox.critical(self, "Lỗi", str(e))
-
-    def xoa_dulieu(self):
-        maga = self.txt_maga.text().strip()
-        if not maga: return
-        reply = QMessageBox.question(self, 'Xác nhận', f'Xóa Ga: {maga}?', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
-                conn = pyodbc.connect(CONNECTION_STRING)
-                conn.execute("DELETE FROM GaTau WHERE MaGa=?", (maga,))
-                conn.commit()
-                conn.close()
-                self.load_data()
-            except: QMessageBox.critical(self, "Lỗi", "Không thể xóa Ga đang có Chuyến Tàu chạy qua!")
-
-if __name__ == "__main__":
-    import sys
-    from PyQt6.QtWidgets import QApplication
-    app = QApplication(sys.argv)
-    window = QLGaTauView()
-    window.show()
-    sys.exit(app.exec())
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8">
+            <title>E-Ticket: {ma_ve}</title>
+            <style>
+                body {{ font-family: 'Segoe UI', Arial, sans-serif; background-color: #34495e; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }}
+                .ticket-box {{ background: white; width: 650px; border-radius: 12px; box-shadow: 0 15px 25px rgba(0,0,0,0.3); overflow: hidden; }}
+                .header {{ background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; padding: 25px; text-align: center; position: relative; }}
+                .header h1 {{ margin: 0; font-size: 24px; letter-spacing: 2px; text-transform: uppercase; }}
+                .badge-online {{ background-color: #f1c40f; color: #c0392b; font-size: 12px; font-weight: bold; padding: 5px 10px; border-radius: 15px; position: absolute; top: 20px; right: 20px; }}
+                .content {{ padding: 30px; display: flex; justify-content: space-between; }}
+                .info-left {{ width: 55%; }}
+                .info-right {{ width: 40%; text-align: right; border-left: 2px dashed #bdc3c7; padding-left: 20px; }}
+                h3 {{ color: #95a5a6; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px; }}
+                p.val {{ font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 0; margin-bottom: 20px; }}
+                .seat-box {{ background: #e74c3c; color: white; padding: 10px 15px; border-radius: 8px; display: inline-block; font-size: 26px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
+                .payment-box {{ background: #f8f9fa; border: 1px solid #ced4da; color: #495057; padding: 6px 12px; border-radius: 4px; display: inline-block; font-size: 13px; font-weight: bold; margin-bottom: 10px; }}
+                .footer {{ background: #ecf0f1; padding: 15px; text-align: center; font-size: 13px; color: #34495e; border-top: 1px dashed #bdc3c7; }}
+                .barcode {{ font-family: 'Libre Barcode 39', cursive, monospace; font-size: 40px; color: #2c3e50; margin-top: 10px; letter-spacing: 4px; }}
+            </style>
+        </head>
+        <body>
+            <div class="ticket-box">
+                <div class="header">
+                    <h1>🚂 VÉ TÀU ĐIỆN TỬ (E-TICKET)</h1>
+                    <p style="margin: 5px 0 0; opacity: 0.9; font-size: 14px;">Mã Đặt Chỗ: <strong>#{ma_ve:06d}</strong></p>
+                    <span class="badge-online">MUA ONLINE</span>
+                </div>
+                <div class="content">
+                    <div class="info-left">
+                        <h3>Hành khách / Passenger</h3>
+                        <p class="val">{ten.upper()}</p>
+                        
+                        <h3>Số Giấy Tờ / ID</h3>
+                        <p class="val">{cccd}</p>
+                        
+                        <h3>Chuyến Tàu / Train</h3>
+                        <p class="val">{ten_chuyen}</p>
+                        
+                        <h3>Khoang / Class</h3>
+                        <p class="val" style="margin-bottom: 0;">{loai_khoang}</p>
+                    </div>
+                    <div class="info-right">
+                        <h3>Ngày Mua / Date</h3>
+                        <p style="font-size: 14px; color: #2c3e50; font-weight: bold; margin-top: 0; margin-bottom: 15px;">{ngay_dat}</p>
+                        
+                        <h3>Thanh Toán Bằng</h3>
+                        <div class="payment-box">{hinh_thuc_tt}</div>
+                        
+                        <h3 style="margin-top: 5px;">Vị Trí Ghế / Seat</h3>
+                        <div class="seat-box">{so_ghe}</div>
+                        
+                        {qr_html}
+                    </div>
+                </div>
+                <div class="footer">
+                    Quý khách có thể chụp ảnh màn hình hoặc in file này để xuất trình khi lên tàu. Xin cảm ơn!
+                </div>
+            </div>
+            <script> window.onload = function() {{ window.print(); }} </script>
+        </body>
+        </html>
+        """
+        with open(ten_file, "w", encoding="utf-8") as file:
+            file.write(html_content)
+        
+        os.startfile(ten_file)

@@ -1,0 +1,127 @@
+import pyodbc
+from datetime import datetime
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget, 
+                             QTableWidgetItem, QMessageBox, QHeaderView, QPushButton, QComboBox)
+from PyQt6.QtCore import Qt
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import CONNECTION_STRING
+
+class ThongKeView(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Báo Cáo KPI - Hiệu Suất Nhân Viên")
+        self.setMinimumSize(750, 450)
+        self.init_ui()
+        self.load_thong_ke()
+
+    def init_ui(self):
+        main_layout = QVBoxLayout()
+
+        # 1. TIÊU ĐỀ
+        lbl_title = QLabel("📊 BÁO CÁO KPI: SỐ LƯỢNG VÉ BÁN THEO NHÂN VIÊN")
+        lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 10px;")
+        main_layout.addWidget(lbl_title)
+
+        # 2. KHU VỰC BỘ LỌC (Tháng / Năm)
+        filter_layout = QHBoxLayout()
+        
+        self.cb_thang = QComboBox()
+        self.cb_thang.addItems([f"Tháng {i}" for i in range(1, 13)])
+        # Set mặc định là tháng hiện tại
+        current_month = datetime.now().month
+        self.cb_thang.setCurrentIndex(current_month - 1)
+        
+        self.cb_nam = QComboBox()
+        current_year = datetime.now().year
+        self.cb_nam.addItems([str(current_year - 1), str(current_year), str(current_year + 1)])
+        self.cb_nam.setCurrentText(str(current_year))
+
+        self.btn_loc = QPushButton("Xem Báo Cáo")
+        self.btn_loc.setStyleSheet("background-color: #3498db; color: white; padding: 5px 15px; font-weight: bold; border-radius: 4px;")
+        self.btn_loc.clicked.connect(self.load_thong_ke)
+
+        filter_layout.addStretch()
+        filter_layout.addWidget(QLabel("Chọn Tháng:"))
+        filter_layout.addWidget(self.cb_thang)
+        filter_layout.addWidget(QLabel("Chọn Năm:"))
+        filter_layout.addWidget(self.cb_nam)
+        filter_layout.addWidget(self.btn_loc)
+        filter_layout.addStretch()
+        main_layout.addLayout(filter_layout)
+
+        # 3. BẢNG THỐNG KÊ
+        self.table_thongke = QTableWidget()
+        self.table_thongke.setColumnCount(3)
+        self.table_thongke.setHorizontalHeaderLabels(["ID Nhân Viên", "Họ Tên Nhân Viên", "Số Vé Đã Bán Trong Tháng"])
+        self.table_thongke.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table_thongke.setStyleSheet("QTableWidget { font-size: 14px; } QHeaderView::section { background-color: #34495e; color: white; font-weight: bold; }")
+        main_layout.addWidget(self.table_thongke)
+
+        # 4. TỔNG KẾT
+        self.lbl_tong_ket = QLabel("Tổng số vé toàn trạm: 0 vé")
+        self.lbl_tong_ket.setStyleSheet("font-size: 14px; font-weight: bold; color: #e74c3c; margin-top: 5px;")
+        self.lbl_tong_ket.setAlignment(Qt.AlignmentFlag.AlignRight)
+        main_layout.addWidget(self.lbl_tong_ket)
+
+        self.setLayout(main_layout)
+
+    def load_thong_ke(self):
+        self.table_thongke.setRowCount(0)
+        
+        # Lấy giá trị tháng và năm từ combobox (VD: "Tháng 5" -> lấy số 5)
+        thang_chon = int(self.cb_thang.currentText().replace("Tháng ", ""))
+        nam_chon = int(self.cb_nam.currentText())
+        
+        tong_ve_toan_he_thong = 0
+
+        try:
+            conn = pyodbc.connect(CONNECTION_STRING)
+            cursor = conn.cursor()
+            
+            # Câu lệnh SQL gom nhóm theo StaffID và đếm số vé, chỉ lấy vé Offline (nhân viên bán)
+            # Dùng LEFT JOIN để lấy tên thật của nhân viên từ bảng Users
+            query = """
+                SELECT 
+                    ISNULL(CAST(v.StaffID AS NVARCHAR(50)), 'N/A') as MaNV,
+                    ISNULL(u.FullName, N'Không xác định') as TenNV,
+                    COUNT(v.MaVe) as SoVeDaBan
+                FROM VeTau v
+                LEFT JOIN Users u ON CAST(v.StaffID AS NVARCHAR(50)) = CAST(u.UserID AS NVARCHAR(50)) 
+                                  OR CAST(v.StaffID AS NVARCHAR(50)) = CAST(u.Username AS NVARCHAR(50))
+                WHERE MONTH(v.NgayDat) = ? AND YEAR(v.NgayDat) = ? AND v.BookingChannel = 'Offline'
+                GROUP BY v.StaffID, u.FullName
+                ORDER BY SoVeDaBan DESC
+            """
+            cursor.execute(query, (thang_chon, nam_chon))
+            rows = cursor.fetchall()
+            
+            for row_idx, row_data in enumerate(rows):
+                self.table_thongke.insertRow(row_idx)
+                
+                # Cột 1: Mã NV
+                self.table_thongke.setItem(row_idx, 0, QTableWidgetItem(str(row_data[0])))
+                # Cột 2: Tên NV
+                self.table_thongke.setItem(row_idx, 1, QTableWidgetItem(str(row_data[1])))
+                
+                # Cột 3: Số vé đã bán (Căn giữa và tô màu)
+                so_ve = int(row_data[2])
+                tong_ve_toan_he_thong += so_ve
+                
+                item_sove = QTableWidgetItem(f"{so_ve} vé")
+                item_sove.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if so_ve > 0:
+                    item_sove.setBackground(Qt.GlobalColor.darkGreen) 
+                    item_sove.setForeground(Qt.GlobalColor.white)
+                self.table_thongke.setItem(row_idx, 2, item_sove)
+                
+            conn.close()
+            
+            # Cập nhật label tổng kết
+            self.lbl_tong_ket.setText(f"Tổng số vé đã bán tại quầy (Tháng {thang_chon}/{nam_chon}): {tong_ve_toan_he_thong} vé")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi Thống Kê", f"Không thể lấy dữ liệu: {str(e)}")

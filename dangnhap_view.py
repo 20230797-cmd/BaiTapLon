@@ -1,96 +1,77 @@
-import pyodbc
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
-                             QLabel, QLineEdit, QPushButton, QMessageBox)
-from PyQt6.QtCore import Qt
-
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import CONNECTION_STRING
-
-class DangNhapView(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Hệ Thống Đặt Vé Tàu Hỏa")
-        self.setFixedSize(350, 220)
-        self.init_ui()
-
-    def init_ui(self):
-        main_layout = QVBoxLayout()
-
-        self.lbl_title = QLabel("ĐĂNG NHẬP HỆ THỐNG")
-        self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_title.setStyleSheet("font-size: 16px; font-weight: bold; color: blue;")
-        main_layout.addWidget(self.lbl_title)
-
-        self.txt_taikhoan = QLineEdit()
-        self.txt_taikhoan.setPlaceholderText("Nhập tên tài khoản...")
-        main_layout.addWidget(self.txt_taikhoan)
-
-        self.txt_matkhau = QLineEdit()
-        self.txt_matkhau.setPlaceholderText("Nhập mật khẩu...")
-        self.txt_matkhau.setEchoMode(QLineEdit.EchoMode.Password)
-        main_layout.addWidget(self.txt_matkhau)
-
-        self.btn_dangnhap = QPushButton("Đăng Nhập")
-        self.btn_dangnhap.setStyleSheet("background-color: #2ecc71; color: white; padding: 5px; font-weight: bold;")
-        main_layout.addWidget(self.btn_dangnhap)
-
-        btn_layout = QHBoxLayout()
-        self.btn_dangky = QPushButton("Đăng ký mới")
-        self.btn_thoat = QPushButton("Thoát")
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Sơ đồ ghế - {{ ma_chuyen }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .seat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; }
+        .seat-item { border: 2px solid #28a745; border-radius: 8px; padding: 15px; cursor: pointer; text-align: center; }
+        .btn-check:checked + .seat-item { background-color: #28a745; color: white; }
+        .seat-sold { background-color: #e9ecef; border-color: #adb5bd; color: #6c757d; cursor: not-allowed; }
+    </style>
+</head>
+<body class="container py-5 bg-light">
+    <div class="card shadow p-4" style="max-width: 800px; margin: auto;">
+        <h2 class="text-center text-primary mb-4">CHUYẾN TÀU: {{ ten_chuyen }}</h2>
+        <div class="alert alert-info text-center">Vui lòng chọn một ghế trống bên dưới</div>
         
-        btn_layout.addWidget(self.btn_dangky)
-        btn_layout.addWidget(self.btn_thoat)
-        main_layout.addLayout(btn_layout)
+        <form action="/xac-nhan-dat-ve" method="POST">
+    <input type="hidden" name="ma_chuyen" value="{{ ma_chuyen }}">
+    
+    <div class="seat-grid">
+    {% if danh_sach_ghe %}
+        {% for ghe in danh_sach_ghe %}
+            {% if ghe[3] == 'Đã đặt' %}
+                <div class="seat-item seat-sold">
+                    <b class="d-block">{{ ghe[0] }}</b>
+                    <small>{{ ghe[1] }}</small><br>
+                    <small class="text-muted">Hết chỗ</small>
+                </div>
+            {% else %}
+                <div class="position-relative">
+                    <input type="checkbox" name="danh_sach_ma_ghe" value="{{ ghe[0] }}" id="id_{{ ghe[0] }}" class="btn-check">
+                    <label class="seat-item d-block" for="id_{{ ghe[0] }}">
+                        <b class="d-block text-primary">{{ ghe[0] }}</b> <div class="small fw-bold text-dark">{{ ghe[1] }}</div> <div class="text-danger fw-bold">{{ "{:,}".format(ghe[2]) }}đ</div> </label>
+                </div>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-warning w-100">Chưa có dữ liệu ghế cho chuyến này.</div>
+    {% endif %}
+</div>
 
-        self.setLayout(main_layout)
+    <button type="submit" class="btn btn-success btn-lg w-100 mt-5 shadow">XÁC NHẬN ĐẶT CÁC GHẾ ĐÃ CHỌN</button>
+</form>
+    </div>
+    <div class="mt-4 p-3 bg-white border rounded shadow-sm">
+    <h5 class="m-0">Số ghế đã chọn: <span id="count" class="text-primary">0</span></h5>
+    <h4 class="mt-2">Tổng tiền: <span id="total" class="text-danger">0</span> VNĐ</h4>
+</div>
 
-        # Kết nối sự kiện
-        self.btn_thoat.clicked.connect(self.close)
-        self.btn_dangnhap.clicked.connect(self.xu_ly_dang_nhap)
-        self.btn_dangky.clicked.connect(self.mo_form_dang_ky)
+<script>
+    const checkboxes = document.querySelectorAll('.btn-check');
+    const totalDisplay = document.getElementById('total');
+    const countDisplay = document.getElementById('count');
 
-    def xu_ly_dang_nhap(self):
-        taikhoan = self.txt_taikhoan.text().strip()
-        matkhau = self.txt_matkhau.text().strip()
-        
-        if not taikhoan or not matkhau:
-            QMessageBox.warning(self, "Lỗi", "Vui lòng nhập đủ thông tin!")
-            return
-            
-        try:
-            conn = pyodbc.connect(CONNECTION_STRING)
-            cursor = conn.cursor()
-            cursor.execute("SELECT UserID, Role, FullName FROM Users WHERE Username=? AND Password=?", (taikhoan, matkhau))
-            user_data = cursor.fetchone()
-            conn.close()
-            
-            if user_data:
-                user_id = user_data[0]
-                vai_tro = user_data[1]
-                ho_ten = user_data[2]
-                
-                # --- ĐIỂM THAY ĐỔI: Xóa chữ trong ô nhập liệu trước khi ẩn ---
-                self.txt_taikhoan.clear()
-                self.txt_matkhau.clear()
-                self.hide() # Ẩn form đăng nhập đi
-                
-                # --- ĐIỂM THAY ĐỔI: Truyền chính form này (login_window=self) sang form con ---
-                if vai_tro in ['Admin', 'Staff']:
-                    from views.formql_view import FormQLView
-                    self.form_menu = FormQLView(current_user_id=user_id, current_username=taikhoan, current_role=vai_tro, full_name=ho_ten, login_window=self)
-                    self.form_menu.show()
-                else:
-                    from views.menu_khachhang_view import MenuKhachHangView
-                    self.form_menu = MenuKhachHangView(current_user_id=user_id, username_dang_nhap=taikhoan, login_window=self)
-                    self.form_menu.show()
-            else:
-                QMessageBox.critical(self, "Lỗi", "Sai tài khoản hoặc mật khẩu!")
-        except Exception as e:
-            QMessageBox.critical(self, "Lỗi kết nối", f"Không thể kết nối CSDL: {str(e)}")
+    checkboxes.forEach(box => {
+        box.addEventListener('change', () => {
+            let total = 0;
+            let count = 0;
+            checkboxes.forEach(cb => {
+                if (cb.checked) {
+                    // Lấy giá tiền từ thẻ label tương ứng (loại bỏ dấu phẩy và chữ đ)
+                    let priceText = cb.nextElementSibling.querySelector('.text-danger').innerText;
+                    let price = parseInt(priceText.replace(/[^0-9]/g, ''));
+                    total += price;
+                    count++;
+                }
+            });
+            totalDisplay.innerText = total.toLocaleString('vi-VN');
+            countDisplay.innerText = count;
+        });
+    });
+</script>
 
-    def mo_form_dang_ky(self):
-        from views.dangky_view import DangKyView
-        self.form_dk = DangKyView()
-        self.form_dk.exec()
+</body>
+</html>

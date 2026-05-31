@@ -1,77 +1,95 @@
 import pyodbc
-from PyQt6 import QtWidgets, uic
-from PyQt6.QtWidgets import QMessageBox, QTableWidgetItem
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QHBoxLayout, 
+                             QLineEdit, QPushButton, QLabel, QMessageBox)
+from PyQt6.QtCore import Qt
 
-CONN_STR = r'DRIVER={ODBC Driver 17 for SQL Server};SERVER=localhost\SQLEXPRESS;DATABASE=QuanLyTauHoa_MSSQL;Trusted_Connection=yes;'
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import CONNECTION_STRING
 
-class QLHoaDonView(QtWidgets.QDialog):
-    def __init__(self):
+class DoiMatKhauView(QDialog):
+    def __init__(self, username):
         super().__init__()
-        uic.loadUi('ui/QLHoaDon.ui', self)
-        self.setWindowTitle("Quản Lý Hóa Đơn Tổng")
-        
-        # Cài đặt bảng 5 cột
-        self.table_hoadon.setColumnCount(5)
-        self.table_hoadon.setHorizontalHeaderLabels(["Mã HD", "CCCD Khách", "Mã NV", "Ngày Lập", "Tổng Tiền (VNĐ)"])
-        
-        self.load_combobox()
-        self.load_data()
-        self.btn_them.clicked.connect(self.them_hoadon)
-        self.table_hoadon.cellClicked.connect(self.chon_hoadon)
+        self.username = username # Nhận tên tài khoản từ Menu truyền sang
+        self.setWindowTitle("Đổi Mật Khẩu")
+        self.setFixedSize(350, 220)
+        self.init_ui()
 
-    def load_combobox(self):
-        conn = pyodbc.connect(CONN_STR)
-        cursor = conn.cursor()
-        # Lấy khách hàng
-        cursor.execute("SELECT cccd, ho_ten FROM khach_hang")
-        for row in cursor.fetchall():
-            self.cb_khachhang.addItem(f"{row[0]} - {row[1]}")
-        # Lấy nhân viên
-        cursor.execute("SELECT ma_nv, ho_ten FROM nhan_vien")
-        for row in cursor.fetchall():
-            self.cb_nhanvien.addItem(f"{row[0]} - {row[1]}")
-        conn.close()
-
-    def load_data(self):
-        self.table_hoadon.setRowCount(0)
-        conn = pyodbc.connect(CONN_STR)
-        cursor = conn.cursor()
-        query = """
-            SELECT h.ma_hd, h.cccd_khach, h.ma_nv, h.ngay_lap, 
-                   ISNULL(SUM(c.don_gia), 0) as tong_tien
-            FROM hoa_don h
-            LEFT JOIN chi_tiet_hd c ON h.ma_hd = c.ma_hd
-            GROUP BY h.ma_hd, h.cccd_khach, h.ma_nv, h.ngay_lap
-        """
-        cursor.execute(query)
-        for row_idx, row_data in enumerate(cursor.fetchall()):
-            self.table_hoadon.insertRow(row_idx)
-            for col_idx, data in enumerate(row_data):
-                self.table_hoadon.setItem(row_idx, col_idx, QTableWidgetItem(str(data)))
-        conn.close()
-
-    def them_hoadon(self):
-        mahd = self.txt_mahd.text().strip()
-        ngay = self.txt_ngaylap.text().strip()
+    def init_ui(self):
+        main_layout = QVBoxLayout()
         
-        if not mahd:
-            QMessageBox.warning(self, "Lỗi", "Nhập Mã HD!")
+        # Tiêu đề
+        lbl_title = QLabel(f"ĐỔI MẬT KHẨU TÀI KHOẢN: {self.username}")
+        lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_title.setStyleSheet("font-weight: bold; color: #d35400; font-size: 14px;")
+        main_layout.addWidget(lbl_title)
+        main_layout.addSpacing(10)
+
+        # Form nhập liệu
+        form_layout = QFormLayout()
+        self.txt_mk_cu = QLineEdit()
+        self.txt_mk_cu.setEchoMode(QLineEdit.EchoMode.Password) # Ẩn text thành dấu chấm
+        self.txt_mk_moi = QLineEdit()
+        self.txt_mk_moi.setEchoMode(QLineEdit.EchoMode.Password)
+        self.txt_xacnhan = QLineEdit()
+        self.txt_xacnhan.setEchoMode(QLineEdit.EchoMode.Password)
+
+        form_layout.addRow("Mật khẩu cũ:", self.txt_mk_cu)
+        form_layout.addRow("Mật khẩu mới:", self.txt_mk_moi)
+        form_layout.addRow("Xác nhận MK:", self.txt_xacnhan)
+        main_layout.addLayout(form_layout)
+
+        # Cụm Nút bấm
+        btn_layout = QHBoxLayout()
+        self.btn_luu = QPushButton("Lưu Thay Đổi")
+        self.btn_luu.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold; padding: 5px;")
+        self.btn_huy = QPushButton("Hủy")
+        
+        btn_layout.addWidget(self.btn_luu)
+        btn_layout.addWidget(self.btn_huy)
+        main_layout.addLayout(btn_layout)
+
+        self.setLayout(main_layout)
+
+        # Kết nối sự kiện
+        self.btn_luu.clicked.connect(self.thuc_hien_doi_mk)
+        self.btn_huy.clicked.connect(self.reject) # Lệnh đóng Dialog
+
+    def thuc_hien_doi_mk(self):
+        mk_cu = self.txt_mk_cu.text().strip()
+        mk_moi = self.txt_mk_moi.text().strip()
+        xacnhan = self.txt_xacnhan.text().strip()
+
+        # 1. Kiểm tra trống
+        if not mk_cu or not mk_moi or not xacnhan:
+            QMessageBox.warning(self, "Lỗi", "Vui lòng nhập đầy đủ thông tin!")
             return
-            
-        cccd = self.cb_khachhang.currentText().split(" - ")[0] if self.cb_khachhang.currentText() else ""
-        manv = self.cb_nhanvien.currentText().split(" - ")[0] if self.cb_nhanvien.currentText() else ""
         
+        # 2. Kiểm tra khớp mật khẩu
+        if mk_moi != xacnhan:
+            QMessageBox.warning(self, "Lỗi", "Mật khẩu xác nhận không khớp!")
+            return
+
         try:
-            conn = pyodbc.connect(CONN_STR)
+            conn = pyodbc.connect(CONNECTION_STRING)
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO hoa_don (ma_hd, cccd_khach, ma_nv, ngay_lap) VALUES (?, ?, ?, ?)", 
-                           (mahd, cccd, manv, ngay))
+            
+            # 3. Kiểm tra mật khẩu cũ trong Database có đúng không
+            cursor.execute("SELECT Password FROM Users WHERE Username=?", (self.username,))
+            row = cursor.fetchone()
+            
+            if not row or row[0] != mk_cu:
+                QMessageBox.warning(self, "Lỗi", "Mật khẩu cũ không chính xác!")
+                conn.close()
+                return
+
+            # 4. Nếu đúng thì tiến hành Update mật khẩu mới
+            cursor.execute("UPDATE Users SET Password=? WHERE Username=?", (mk_moi, self.username))
             conn.commit()
             conn.close()
-            self.load_data()
-            QMessageBox.information(self, "Thành công", "Đã tạo Hóa Đơn Trống!")
+            
+            QMessageBox.information(self, "Thành công", "Đổi mật khẩu thành công!")
+            self.accept() # Đóng form và trả về kết quả thành công
         except Exception as e:
-            QMessageBox.critical(self, "Lỗi", "Mã Hóa Đơn đã tồn tại!")
-
-    def chon_hoadon(self, row, col):
-        self.txt_mahd.setText(self.table_hoadon.item(row, 0).text())
+            QMessageBox.critical(self, "Lỗi", str(e))

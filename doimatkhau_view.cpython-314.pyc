@@ -1,0 +1,121 @@
+import pyodbc
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget, 
+                             QTableWidgetItem, QMessageBox, QHeaderView, QComboBox, QProgressBar)
+from PyQt6.QtCore import Qt
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import CONNECTION_STRING
+
+class SucChuaView(QDialog):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Tổng Quan Sức Chứa & Mật Độ Khách")
+        self.setMinimumSize(800, 500)
+        self.init_ui()
+        self.load_chuyen_tau()
+
+    def init_ui(self):
+        main_layout = QVBoxLayout()
+
+        # 1. TIÊU ĐỀ
+        lbl_title = QLabel("📊 KIỂM TRA SỨC CHỨA THEO KHOANG TÀU")
+        lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 10px;")
+        main_layout.addWidget(lbl_title)
+
+        # 2. CHỌN CHUYẾN TÀU
+        top_layout = QHBoxLayout()
+        self.cb_chuyentau = QComboBox()
+        self.cb_chuyentau.setMinimumWidth(300)
+        self.cb_chuyentau.currentIndexChanged.connect(self.calculate_capacity)
+        
+        top_layout.addStretch()
+        top_layout.addWidget(QLabel("Chọn Chuyến Tàu cần xem:"))
+        top_layout.addWidget(self.cb_chuyentau)
+        top_layout.addStretch()
+        main_layout.addLayout(top_layout)
+
+        # 3. BẢNG HIỂN THỊ CHI TIẾT
+        self.table_capacity = QTableWidget()
+        self.table_capacity.setColumnCount(5)
+        self.table_capacity.setHorizontalHeaderLabels([
+            "Loại Khoang", "Tổng Chỗ", "Đã Bán", "Còn Trống", "Tình Trạng (Biểu đồ)"
+        ])
+        self.table_capacity.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table_capacity.setStyleSheet("QTableWidget { font-size: 14px; }")
+        main_layout.addWidget(self.table_capacity)
+
+        self.setLayout(main_layout)
+
+    def load_chuyen_tau(self):
+        try:
+            conn = pyodbc.connect(CONNECTION_STRING)
+            cursor = conn.cursor()
+            cursor.execute("SELECT MaChuyen, TenChuyen FROM ChuyenTau")
+            for row in cursor.fetchall():
+                self.cb_chuyentau.addItem(f"{row[0]} - {row[1]}", row[0])
+            conn.close()
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi", str(e))
+
+    def calculate_capacity(self):
+        ma_chuyen = self.cb_chuyentau.currentData()
+        if not ma_chuyen: return
+
+        self.table_capacity.setRowCount(0)
+        
+        # Danh sách các loại khoang định nghĩa sẵn
+        cac_loai = [
+            "Ngồi Cứng", 
+            "Ngồi Mềm Điều Hòa", 
+            "Giường Nằm Khoang 4", 
+            "Giường Nằm Khoang 6"
+        ]
+        tong_cho_moi_loai = 60 # Quy định 60 chỗ cho mỗi loại
+
+        try:
+            conn = pyodbc.connect(CONNECTION_STRING)
+            cursor = conn.cursor()
+            
+            # Lấy tất cả thông tin ghế đã bán của chuyến này
+            cursor.execute("SELECT LoaiGhe FROM VeTau WHERE MaChuyen = ?", (ma_chuyen,))
+            ve_da_ban = [row[0] for row in cursor.fetchall()]
+            conn.close()
+
+            for idx, ten_loai in enumerate(cac_loai):
+                # Đếm xem trong danh sách vé đã bán, có bao nhiêu vé thuộc loại khoang này
+                da_ban = sum(1 for v in ve_da_ban if ten_loai in v)
+                con_trong = tong_cho_moi_loai - da_ban
+                phan_tram = int((da_ban / tong_cho_moi_loai) * 100)
+
+                self.table_capacity.insertRow(idx)
+                self.table_capacity.setItem(idx, 0, QTableWidgetItem(ten_loai))
+                self.table_capacity.setItem(idx, 1, QTableWidgetItem(str(tong_cho_moi_loai)))
+                
+                # Hiển thị số đã bán (Tô màu đỏ nếu đầy)
+                item_daban = QTableWidgetItem(str(da_ban))
+                if da_ban >= tong_cho_moi_loai:
+                    item_daban.setForeground(Qt.GlobalColor.red)
+                    item_daban.setText(f"{da_ban} (HẾT)")
+                self.table_capacity.setItem(idx, 2, item_daban)
+                
+                self.table_capacity.setItem(idx, 3, QTableWidgetItem(str(con_trong)))
+
+                # TẠO BIỂU ĐỒ PHẦN TRĂM (ProgressBar)
+                progress = QProgressBar()
+                progress.setValue(phan_tram)
+                # Đổi màu thanh progress dựa trên độ đầy
+                if phan_tram < 50:
+                    color = "#2ecc71" # Xanh (còn nhiều)
+                elif phan_tram < 90:
+                    color = "#f1c40f" # Vàng (sắp đầy)
+                else:
+                    color = "#e74c3c" # Đỏ (quá tải)
+                
+                progress.setStyleSheet(f"QProgressBar::chunk {{ background-color: {color}; }}")
+                self.table_capacity.setCellWidget(idx, 4, progress)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Lỗi tính toán", str(e))

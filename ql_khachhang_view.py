@@ -1,180 +1,182 @@
-import pyodbc
-from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, 
-                             QLineEdit, QPushButton, QLabel, QTableWidget, 
-                             QTableWidgetItem, QMessageBox, QHeaderView)
+from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QGridLayout, 
+                             QPushButton, QLabel, QMessageBox)
+from PyQt6.QtCore import Qt
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import CONNECTION_STRING
-
-class QLKhachHangView(QDialog):
-    def __init__(self):
+class FormQLView(QDialog):
+    def __init__(self, current_user_id, current_username, current_role="Staff", full_name="Người dùng", login_window=None):
         super().__init__()
-        self.setWindowTitle("Quản Lý Thông Tin Khách Hàng")
-        self.setMinimumSize(750, 500)
-        self.init_ui()
-        self.load_data()
+        self.user_id = current_user_id
+        self.username = current_username
+        self.role = current_role
+        self.login_window = login_window 
+        
+        self.setWindowTitle(f"Phần mềm Quản Lý & Bán Vé - [{self.role}] {full_name}")
+        self.setFixedSize(650, 550) # Tăng chiều cao lên 550 để chứa thêm hàng
+        self.init_ui(full_name)
 
-    def init_ui(self):
+    def init_ui(self, full_name):
         main_layout = QVBoxLayout()
 
-        # --- 1. KHU VỰC TÌM KIẾM ---
-        search_layout = QHBoxLayout()
-        self.txt_timkiem = QLineEdit()
-        self.txt_timkiem.setPlaceholderText("Nhập tên hoặc SĐT khách hàng...")
-        self.btn_tim = QPushButton("Tìm kiếm")
-        self.btn_tim.setStyleSheet("background-color: #3498db; color: white; padding: 5px;")
-        
-        search_layout.addWidget(QLabel("Tìm kiếm:"))
-        search_layout.addWidget(self.txt_timkiem)
-        search_layout.addWidget(self.btn_tim)
-        main_layout.addLayout(search_layout)
+        lbl_info = QLabel(f"Xin chào: {full_name} | Quyền truy cập: {self.role}")
+        lbl_info.setStyleSheet("background-color: #34495e; color: white; padding: 15px; font-size: 15px; font-weight: bold;")
+        lbl_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(lbl_info)
+        main_layout.addSpacing(10)
 
-        # --- 2. BẢNG DỮ LIỆU ---
-        self.table_kh = QTableWidget()
-        self.table_kh.setColumnCount(4)
-        self.table_kh.setHorizontalHeaderLabels(["Mã KH", "Tên Khách Hàng", "CCCD", "Số Điện Thoại"])
-        self.table_kh.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        main_layout.addWidget(self.table_kh)
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(15) 
+        
+        # ================= TẠO CÁC NÚT BẤM =================
+        self.btn_banve_quay = self.create_menu_button("BÁN VÉ\nTẠI QUẦY", "#27ae60") 
+        self.btn_ql_chuyentau = self.create_menu_button("Quản Lý\nChuyến Tàu", "#3498db")
+        self.btn_ql_gatau = self.create_menu_button("Quản Lý\nGa Tàu", "#9b59b6")
+        
+        self.btn_ql_ve = self.create_menu_button("Quản Lý\nVé Tàu", "#1abc9c")
+        self.btn_ql_khachhang = self.create_menu_button("Quản Lý\nKhách Hàng", "#3498db")
+        self.btn_ql_nhanvien = self.create_menu_button("Quản Lý\nNhân Viên", "#e67e22")
+        
+        self.btn_ql_taikhoan = self.create_menu_button("Quản Lý\nTài Khoản", "#e74c3c")
+        self.btn_thongke = self.create_menu_button("Thống Kê\nKPI", "#f1c40f")
+        self.btn_thongke.setStyleSheet("background-color: #f1c40f; color: black; font-size: 14px; font-weight: bold; border-radius: 8px;")
+        
+        # ĐIỂM THAY ĐỔI: Thêm nút Sức chứa
+        self.btn_succhua = self.create_menu_button("Sức Chứa\nKhoang Tàu", "#8e44ad")
+        
+        # Nút đăng xuất làm riêng cho nổi bật
+        self.btn_dangxuat = QPushButton("ĐĂNG XUẤT")
+        self.btn_dangxuat.setFixedHeight(50)
+        self.btn_dangxuat.setStyleSheet("background-color: #c0392b; color: white; font-size: 14px; font-weight: bold; border-radius: 8px;")
 
-        # --- 3. KHU VỰC NHẬP LIỆU & NÚT BẤM ---
-        bottom_layout = QHBoxLayout()
+        # ================= SẮP XẾP VÀO LƯỚI =================
+        grid_layout.addWidget(self.btn_banve_quay, 0, 0)
+        grid_layout.addWidget(self.btn_ql_chuyentau, 0, 1)
+        grid_layout.addWidget(self.btn_ql_gatau, 0, 2)
         
-        form_layout = QFormLayout()
-        self.txt_makh = QLineEdit()
-        self.txt_tenkh = QLineEdit()
-        self.txt_cccd = QLineEdit()
-        self.txt_sdt = QLineEdit()
+        grid_layout.addWidget(self.btn_ql_ve, 1, 0)
+        grid_layout.addWidget(self.btn_ql_khachhang, 1, 1)
+        grid_layout.addWidget(self.btn_ql_nhanvien, 1, 2)
+        
+        grid_layout.addWidget(self.btn_ql_taikhoan, 2, 0)
+        grid_layout.addWidget(self.btn_thongke, 2, 1) 
+        grid_layout.addWidget(self.btn_succhua, 2, 2) # Nút sức chứa thay vào chỗ Đăng xuất cũ
 
-        form_layout.addRow("Mã KH (*):", self.txt_makh)
-        form_layout.addRow("Tên KH (*):", self.txt_tenkh)
-        form_layout.addRow("CCCD/CMND:", self.txt_cccd)
-        form_layout.addRow("Số ĐT:", self.txt_sdt)
-        bottom_layout.addLayout(form_layout, stretch=2)
-
-        btn_layout = QVBoxLayout()
-        self.btn_them = QPushButton("Thêm Khách Hàng")
-        self.btn_sua = QPushButton("Cập Nhật")
-        self.btn_xoa = QPushButton("Xóa Khách Hàng")
-        self.btn_clear = QPushButton("Làm Mới Form")
+        main_layout.addLayout(grid_layout)
         
-        self.btn_them.setStyleSheet("background-color: #2ecc71; color: white; font-weight: bold;")
-        self.btn_sua.setStyleSheet("background-color: #f39c12; color: white; font-weight: bold;")
-        self.btn_xoa.setStyleSheet("background-color: #e74c3c; color: white; font-weight: bold;")
+        # Thêm nút đăng xuất xuống dưới cùng
+        main_layout.addSpacing(10)
+        main_layout.addWidget(self.btn_dangxuat)
         
-        btn_layout.addWidget(self.btn_them)
-        btn_layout.addWidget(self.btn_sua)
-        btn_layout.addWidget(self.btn_xoa)
-        btn_layout.addWidget(self.btn_clear)
-        bottom_layout.addLayout(btn_layout, stretch=1)
-        
-        main_layout.addLayout(bottom_layout)
         self.setLayout(main_layout)
 
-        # --- KẾT NỐI SỰ KIỆN ---
-        self.btn_tim.clicked.connect(self.tim_kiem)
-        self.btn_them.clicked.connect(self.them_dulieu)
-        self.btn_sua.clicked.connect(self.sua_dulieu)
-        self.btn_xoa.clicked.connect(self.xoa_dulieu)
-        self.btn_clear.clicked.connect(self.clear_form)
-        self.table_kh.cellClicked.connect(self.chon_dulieu)
+        # ================= XỬ LÝ PHÂN QUYỀN CHẶT CHẼ =================
+        if self.role == 'Admin':
+            self.btn_banve_quay.hide()
+        elif self.role == 'Staff':
+            self.btn_ql_nhanvien.hide()
+            self.btn_ql_taikhoan.hide()
+            self.btn_thongke.hide()
+            # Nút sức chứa vẫn hiện cho Staff dùng bình thường
 
-    # ================= CÁC HÀM XỬ LÝ DATABASE =================
+        # ================= KẾT NỐI SỰ KIỆN =================
+        self.btn_banve_quay.clicked.connect(self.mo_banve_quay)
+        self.btn_ql_chuyentau.clicked.connect(self.mo_ql_chuyentau)
+        self.btn_ql_gatau.clicked.connect(self.mo_ql_gatau)
+        self.btn_ql_khachhang.clicked.connect(self.mo_ql_khachhang)
+        self.btn_ql_ve.clicked.connect(self.mo_ql_ve)
+        self.btn_ql_nhanvien.clicked.connect(self.mo_ql_nhanvien)
+        self.btn_ql_taikhoan.clicked.connect(self.mo_ql_taikhoan)
+        self.btn_thongke.clicked.connect(self.mo_thongke)
+        self.btn_succhua.clicked.connect(self.mo_succhua) # Kết nối sự kiện Sức chứa
+        self.btn_dangxuat.clicked.connect(self.dang_xuat)
 
-    def load_data(self, query_filter="", params=None):
-        self.table_kh.setRowCount(0)
-        try:
-            conn = pyodbc.connect(CONNECTION_STRING)
-            cursor = conn.cursor()
-            sql = "SELECT MaKH, TenKH, CCCD, SDT FROM KhachHang"
-            if query_filter:
-                sql += query_filter
-                
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.execute(sql)
-                
-            rows = cursor.fetchall()
-            for row_idx, row_data in enumerate(rows):
-                self.table_kh.insertRow(row_idx)
-                for col_idx, data in enumerate(row_data):
-                    val = str(data) if data is not None else ""
-                    self.table_kh.setItem(row_idx, col_idx, QTableWidgetItem(val))
-            conn.close()
-        except Exception as e:
-            QMessageBox.critical(self, "Lỗi Tải Dữ Liệu", str(e))
-        self.clear_form()
+    def create_menu_button(self, text, color):
+        btn = QPushButton(text)
+        btn.setFixedSize(180, 90)
+        btn.setStyleSheet(f"background-color: {color}; color: white; font-size: 14px; font-weight: bold; border-radius: 8px;")
+        return btn
 
-    def clear_form(self):
-        self.txt_makh.clear()
-        self.txt_makh.setReadOnly(False)
-        self.txt_tenkh.clear()
-        self.txt_cccd.clear()
-        self.txt_sdt.clear()
-        self.txt_timkiem.clear()
+    def thong_bao_loi(self, ten_form, loi):
+        QMessageBox.critical(self, "Lỗi Tải Form", f"Không thể mở {ten_form}.\nChi tiết lỗi: {str(loi)}")
 
-    def chon_dulieu(self, row, col):
-        self.txt_makh.setText(self.table_kh.item(row, 0).text())
-        self.txt_makh.setReadOnly(True)
-        self.txt_tenkh.setText(self.table_kh.item(row, 1).text())
-        self.txt_cccd.setText(self.table_kh.item(row, 2).text())
-        self.txt_sdt.setText(self.table_kh.item(row, 3).text())
-
-    def them_dulieu(self):
-        ma = self.txt_makh.text().strip()
-        ten = self.txt_tenkh.text().strip()
-        cccd = self.txt_cccd.text().strip()
-        sdt = self.txt_sdt.text().strip()
-
-        if not ma or not ten:
-            QMessageBox.warning(self, "Lỗi", "Mã KH và Tên KH không được để trống!")
-            return
-
-        try:
-            conn = pyodbc.connect(CONNECTION_STRING)
-            conn.execute("INSERT INTO KhachHang (MaKH, TenKH, CCCD, SDT) VALUES (?, ?, ?, ?)", (ma, ten, cccd, sdt))
-            conn.commit()
-            conn.close()
-            QMessageBox.information(self, "Thành công", "Đã thêm khách hàng!")
-            self.load_data()
-        except pyodbc.IntegrityError:
-            QMessageBox.warning(self, "Lỗi", "Mã KH này đã tồn tại!")
-        except Exception as e:
-            QMessageBox.critical(self, "Lỗi", str(e))
-
-    def sua_dulieu(self):
-        ma = self.txt_makh.text().strip()
-        if not ma: return
-        ten = self.txt_tenkh.text().strip()
-        cccd = self.txt_cccd.text().strip()
-        sdt = self.txt_sdt.text().strip()
-
-        try:
-            conn = pyodbc.connect(CONNECTION_STRING)
-            conn.execute("UPDATE KhachHang SET TenKH=?, CCCD=?, SDT=? WHERE MaKH=?", (ten, cccd, sdt, ma))
-            conn.commit()
-            conn.close()
-            self.load_data()
-        except Exception as e:
-            QMessageBox.critical(self, "Lỗi", str(e))
-
-    def xoa_dulieu(self):
-        ma = self.txt_makh.text().strip()
-        if not ma: return
-        reply = QMessageBox.question(self, 'Xác nhận', f'Xóa Khách Hàng: {ma}?', 
+    # --- HÀM XỬ LÝ ĐĂNG XUẤT ---
+    def dang_xuat(self):
+        reply = QMessageBox.question(self, 'Xác nhận', 'Bạn có chắc chắn muốn đăng xuất?', 
                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            try:
-                conn = pyodbc.connect(CONNECTION_STRING)
-                conn.execute("DELETE FROM KhachHang WHERE MaKH=?", (ma,))
-                conn.commit()
-                conn.close()
-                self.load_data()
-            except Exception:
-                QMessageBox.critical(self, "Lỗi", "Không thể xóa (có thể khách hàng này đã có hóa đơn/vé).")
+            if self.login_window:
+                self.login_window.show() 
+            self.close() 
 
-    def tim_kiem(self):
-        tukhoa = self.txt_timkiem.text().strip()
-        self.load_data(query_filter=" WHERE TenKH LIKE ? OR SDT LIKE ?", params=(f"%{tukhoa}%", f"%{tukhoa}%"))
+    # --- CÁC HÀM MỞ FORM ---
+    def mo_banve_quay(self):
+        try:
+            from views.banve_quay_view import BanVeQuayView
+            self.form_bv = BanVeQuayView(self.user_id, self.username)
+            self.form_bv.exec()
+        except Exception as e:
+            self.thong_bao_loi("Bán Vé Tại Quầy", e)
+
+    def mo_ql_chuyentau(self):
+        try:
+            from views.ql_chuyentau_view import QLChuyenTauView
+            self.form_chuyentau = QLChuyenTauView() 
+            self.form_chuyentau.exec()
+        except Exception as e:
+            self.thong_bao_loi("QL Chuyến Tàu", e)
+
+    def mo_ql_gatau(self):
+        try:
+            from views.ql_gatau_view import QLGaTauView
+            self.form_gatau = QLGaTauView()
+            self.form_gatau.exec()
+        except Exception as e:
+            self.thong_bao_loi("QL Ga Tàu", e)
+
+    def mo_ql_khachhang(self):
+        try:
+            from views.ql_khachhang_view import QLKhachHangView
+            self.form_khachhang = QLKhachHangView()
+            self.form_khachhang.exec()
+        except Exception as e:
+            self.thong_bao_loi("QL Khách Hàng", e)
+
+    def mo_ql_ve(self):
+        try:
+            from views.ql_ve_view import QLVeView
+            self.form_ve = QLVeView(current_user_id=self.user_id)
+            self.form_ve.exec()
+        except Exception as e:
+            self.thong_bao_loi("QL Vé Tàu", e)
+
+    def mo_ql_nhanvien(self):
+        try:
+            from views.ql_nhanvien_view import QLNhanVienView
+            self.form_nhanvien = QLNhanVienView()
+            self.form_nhanvien.exec()
+        except Exception as e:
+            self.thong_bao_loi("QL Nhân Viên", e)
+
+    def mo_ql_taikhoan(self):
+        try:
+            from views.ql_taikhoan_view import QLTaiKhoanView
+            self.form_taikhoan = QLTaiKhoanView(current_admin_id=self.user_id)
+            self.form_taikhoan.exec()
+        except Exception as e:
+            self.thong_bao_loi("QL Tài Khoản", e)
+
+    def mo_thongke(self):
+        try:
+            from views.thongke_view import ThongKeView
+            self.form_thongke = ThongKeView()
+            self.form_thongke.exec()
+        except Exception as e:
+            self.thong_bao_loi("Thống Kê", e)
+            
+    # ĐIỂM THAY ĐỔI: Hàm mở form Sức Chứa
+    def mo_succhua(self):
+        try:
+            from views.suc_chua_view import SucChuaView
+            self.form_succhua = SucChuaView()
+            self.form_succhua.exec()
+        except Exception as e:
+            self.thong_bao_loi("Sức Chứa Khoang Tàu", e)
